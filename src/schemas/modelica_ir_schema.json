@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ModelicaIR",
+  "type": "object",
+  "properties": {
+    "components": {"type": "array", "items": {"type": "object"}},
+    "connections": {"type": "array", "items": {"type": "object"}},
+    "parameters": {"type": "array", "items": {"type": "object"}}
+  },
+  "required": ["components", "connections", "parameters"]
+}

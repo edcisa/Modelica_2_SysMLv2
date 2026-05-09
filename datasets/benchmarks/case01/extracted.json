@@ -1,0 +1,11 @@
+{
+  "components": [
+    {"name": "R", "type": "parameter", "value": 100},
+    {"name": "v", "type": "variable"},
+    {"name": "i", "type": "variable"}
+  ],
+  "connections": [],
+  "parameters": [
+    {"name": "R", "value": 100}
+  ]
+}

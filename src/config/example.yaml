@@ -1,0 +1,17 @@
+# Example configuration for Modelica2SysMLv2 pipeline
+extractor:
+  type: openmodelica
+  model_path: datasets/benchmarks/case01/model.mo
+serializer:
+  type: json
+mapper:
+  type: semantic
+agent:
+  provider: mock
+validator:
+  type: structural
+metrics:
+  - structural_fidelity
+seed: 42
+log_level: INFO
+output_dir: reports/case01/

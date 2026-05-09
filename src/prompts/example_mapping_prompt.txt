@@ -1,0 +1,23 @@
+# Example Mapping Prompt
+Map the following Modelica IR to SysML v2. Focus on architecture and constraint preservation.
+
+Modelica IR:
+{
+  "components": [
+    {"name": "R", "type": "parameter", "value": 100},
+    {"name": "v", "type": "variable"},
+    {"name": "i", "type": "variable"}
+  ],
+  "connections": [],
+  "parameters": [
+    {"name": "R", "value": 100}
+  ]
+}
+
+Output:
+block SimpleResistor {
+  parameter R: Real = 100;
+  part v: Voltage;
+  part i: Current;
+  constraint eq1: v = R * i;
+}

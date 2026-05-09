@@ -1,0 +1,12 @@
+# Benchmark manifest for batch evaluation
+benchmarks:
+  - name: case01
+    model: datasets/benchmarks/case01/model.mo
+    config: src/config/example.yaml
+    output_dir: reports/case01/
+    seed: 42
+  - name: case02
+    model: datasets/benchmarks/case02/model.mo
+    config: src/config/example.yaml
+    output_dir: reports/case02/
+    seed: 42

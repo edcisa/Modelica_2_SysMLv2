@@ -1,0 +1,12 @@
+# Validator Agent Prompt
+You are a SysML v2 validation expert. Given the generated SysML v2 code and the reference Modelica IR, check for structural and semantic fidelity. Report any inconsistencies and suggest corrections.
+
+Input SysML v2:
+{sysml_code}
+
+Reference IR:
+{modelica_ir}
+
+Output:
+- Validation result
+- Correction suggestions
