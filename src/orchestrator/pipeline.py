@@ -1,97 +1,123 @@
-"""
-Pipeline Orchestrator
-"""
+"""Pipeline orchestration for Modelica-to-SysML transformation."""
+
+from __future__ import annotations
+
+import csv
+import json
+from pathlib import Path
 from typing import Any
+
+from loguru import logger
+
+from src.agents.llm_agent import MockLLMAgent
+from src.agents.repair_agent import RepairAgent
+from src.agents.validator_agent import ValidatorAgent
+from src.extractors.modelica_extractor import OpenModelicaExtractor
+from src.mappers.rule_based_mapper import RuleBasedMapper
+from src.mappers.semantic_mapper import SemanticMapper
+from src.metrics.precision_metrics import PrecisionMetrics
+from src.metrics.structural_fidelity import StructuralFidelityMetrics
+from src.parsers.sysml_parser import SysMLv2Parser
+from src.serializers.json_serializer import JSONSerializer, ModelicaIR
+from src.utils.determinism import set_seed
+from src.utils.logging import setup_logging
+from src.validators.ast_validator import ASTValidator
+from src.validators.semantic_validator import SemanticValidator
+from src.validators.structural_validator import StructuralValidator
 
 class PipelineOrchestrator:
     def __init__(self, config: Any):
         self.config = config
 
-    def run(self):
-        """
-        Executes the full Modelica2SysMLv2 pipeline step by step:
-        1. Extraction
-        2. Serialization
-        3. Mapping (LLM or rule-based)
-        4. Generation (LLM agent)
-        5. Validation (structural, AST, semantic)
-        6. Repair (if needed)
-        7. Metrics computation
-        8. Logging and output
-        """
-        from src.extractors.modelica_extractor import OpenModelicaExtractor
-        from src.serializers.json_serializer import JSONSerializer, ModelicaIR
-        from src.mappers.semantic_mapper import SemanticMapper
-        from src.agents.llm_agent import MockLLMAgent
-        from src.agents.validator_agent import ValidatorAgent
-        from src.agents.repair_agent import RepairAgent
-        from src.validators.structural_validator import StructuralValidator
-        from src.validators.ast_validator import ASTValidator
-        from src.validators.semantic_validator import SemanticValidator
-        from src.parsers.sysml_parser import SysMLv2Parser
-        from src.metrics.structural_fidelity import StructuralFidelityMetrics
-        from src.metrics.precision_metrics import PrecisionMetrics
-        from src.utils.logging import setup_logging
-        from src.utils.determinism import set_seed
-        import os
-        import json
+    def run(self) -> dict[str, Any]:
+        """Execute the full transformation workflow and return a run summary."""
+        setup_logging(self.config.get("log_level", "INFO"))
+        set_seed(int(self.config.get("seed", 42)))
 
-        setup_logging()
-        config = self.config
-        set_seed(config.get("seed", 42))
-
-        # 1. Extraction
         extractor = OpenModelicaExtractor()
-        model_path = config["extractor"]["model_path"]
+        mapping_type = str(self.config.get("mapper", {}).get("type", "semantic"))
+        mapper = SemanticMapper() if mapping_type == "semantic" else RuleBasedMapper()
+
+        generator_agent = MockLLMAgent()
+        validator_agent = ValidatorAgent()
+        repair_agent = RepairAgent()
+
+        structural_validator = StructuralValidator()
+        ast_validator = ASTValidator()
+        semantic_validator = SemanticValidator()
+        sysml_parser = SysMLv2Parser()
+
+        model_path = self.config.get("extractor", {}).get("model_path", "")
+        output_dir = Path(self.config.get("output_dir", "reports/tmp"))
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info("Stage 1/8: extraction")
         ir_dict = extractor.extract(model_path)
 
-        # 2. Serialization
+        logger.info("Stage 2/8: serialization")
         ir = ModelicaIR(**ir_dict)
-        json_data = JSONSerializer.serialize(ir)
+        ir_json = JSONSerializer.serialize(ir)
 
-        # 3. Mapping (LLM or rule-based)
-        mapper = SemanticMapper()
-        sysml_code = mapper.map(ir_dict)
+        logger.info("Stage 3/8: semantic mapping")
+        mapped_prompt = mapper.map(ir_dict)
 
-        # 4. Generation (LLM agent)
-        agent = MockLLMAgent()
-        sysml_code = agent.generate(sysml_code)
+        logger.info("Stage 4/8: LLM generation")
+        sysml_code = generator_agent.generate(mapped_prompt, {"candidate": mapped_prompt})
 
-        # 5. Validation (structural, AST, semantic)
-        validator = StructuralValidator()
-        is_valid = validator.validate(sysml_code, ir_dict)
-        ast_validator = ASTValidator()
-        sysml_parser = SysMLv2Parser()
-        sysml_ast = sysml_parser.parse(sysml_code)
-        ast_valid = ast_validator.validate(ir_dict, sysml_ast)
-        semantic_validator = SemanticValidator()
-        semantic_valid = semantic_validator.validate(ir_dict, sysml_code)
+        logger.info("Stage 5-6/8: validation and repair loop")
+        max_repair_iterations = int(self.config.get("max_repair_iterations", 2))
+        checks = {"structural": False, "ast": False, "semantic": False}
+        repair_attempts = 0
 
-        # 6. Repair (if needed)
-        if not (is_valid and ast_valid and semantic_valid):
-            repair_agent = RepairAgent()
-            sysml_code = repair_agent.generate("Repair prompt")
-            # Re-validate after repair
-            is_valid = validator.validate(sysml_code, ir_dict)
+        while True:
             sysml_ast = sysml_parser.parse(sysml_code)
-            ast_valid = ast_validator.validate(ir_dict, sysml_ast)
-            semantic_valid = semantic_validator.validate(ir_dict, sysml_code)
+            checks = {
+                "structural": structural_validator.validate(sysml_code, ir_dict),
+                "ast": ast_validator.validate(ir_dict, sysml_ast),
+                "semantic": semantic_validator.validate(ir_dict, sysml_code),
+            }
+            if all(checks.values()) or repair_attempts >= max_repair_iterations:
+                break
 
-        # 7. Metrics computation
-        metrics = StructuralFidelityMetrics()
-        results = metrics.compute(sysml_ast, ir_dict)
-        precision_metrics = PrecisionMetrics()
-        precision = precision_metrics.compute(sysml_ast, ir_dict)
+            repair_attempts += 1
+            sysml_code = repair_agent.generate(
+                "repair invalid sysml",
+                {
+                    "candidate": sysml_code,
+                    "model_name": ir_dict.get("model_name", "RecoveredModel"),
+                    "checks": checks,
+                },
+            )
 
-        # 8. Logging and output
-        output_dir = config.get("output_dir", "reports/tmp/")
-        os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, "extracted.json"), "w") as f:
-            f.write(json_data)
-        with open(os.path.join(output_dir, "generated.sysml"), "w") as f:
-            f.write(sysml_code)
-        with open(os.path.join(output_dir, "metrics.json"), "w") as f:
-            json.dump(results, f, indent=2)
-        with open(os.path.join(output_dir, "precision.json"), "w") as f:
-            json.dump(precision, f, indent=2)
-        print("Pipeline completed. Outputs written to:", output_dir)
+        validation_summary = validator_agent.generate("validate", {"checks": checks})
+
+        logger.info("Stage 7/8: metrics")
+        fidelity_metrics = StructuralFidelityMetrics().compute(sysml_ast, ir_dict)
+        precision_metrics = PrecisionMetrics().compute(sysml_ast, ir_dict)
+        combined_metrics = {**fidelity_metrics, **precision_metrics}
+
+        logger.info("Stage 8/8: persist artifacts")
+        (output_dir / "extracted.json").write_text(ir_json, encoding="utf-8")
+        (output_dir / "generated.sysml").write_text(sysml_code, encoding="utf-8")
+        (output_dir / "validation.txt").write_text(validation_summary, encoding="utf-8")
+        JSONSerializer.save_dict(combined_metrics, str(output_dir / "metrics.json"))
+
+        with open(output_dir / "metrics.csv", "w", newline="", encoding="utf-8") as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=list(combined_metrics.keys()))
+            writer.writeheader()
+            writer.writerow(combined_metrics)
+
+        run_summary = {
+            "model_name": ir_dict.get("model_name", "UnknownModel"),
+            "model_path": model_path,
+            "output_dir": str(output_dir),
+            "checks": checks,
+            "repair_attempts": repair_attempts,
+            "metrics": combined_metrics,
+            "status": "ok" if all(checks.values()) else "degraded",
+        }
+
+        with open(output_dir / "run_summary.json", "w", encoding="utf-8") as summary_file:
+            json.dump(run_summary, summary_file, indent=2)
+
+        return run_summary

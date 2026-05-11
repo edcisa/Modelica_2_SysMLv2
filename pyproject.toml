@@ -30,6 +30,9 @@ ruff = "^0.4.2"
 black = "^24.4.2"
 mypy = "^1.10.0"
 
+[tool.poetry.scripts]
+modelica2sysmlv2 = "src.main:app"
+
 [tool.black]
 line-length = 88
 

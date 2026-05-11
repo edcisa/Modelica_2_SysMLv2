@@ -6,6 +6,9 @@
 
 ---
 
+## Architecture Diagram
+
+See architecture documentation: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ---
 
@@ -59,7 +62,7 @@ $ poetry install
 
 ```bash
 # Run extraction and transformation pipeline
-$ poetry run modelica2sysmlv2 run --config configs/example.yaml
+$ poetry run modelica2sysmlv2 run --config src/config/example.yaml
 ```
 
 ---
@@ -78,7 +81,7 @@ $ poetry run modelica2sysmlv2 run --config configs/example.yaml
 - Run the benchmark pipeline:
 
 ```bash
-$ poetry run modelica2sysmlv2 benchmark --manifest configs/benchmark_manifest.yaml
+$ poetry run modelica2sysmlv2 benchmark --manifest src/config/benchmark_manifest.yaml
 ```
 
 - Results and metrics are saved in `reports/`.
@@ -111,7 +114,7 @@ See `src/config/example.yaml` for a full configuration template.
 - Launch experiments with:
 
 ```bash
-$ poetry run modelica2sysmlv2 experiment --config configs/experiment.yaml
+$ poetry run modelica2sysmlv2 experiment --manifest reports/experiment_manifest.yaml
 ```
 
 ---

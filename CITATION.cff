@@ -6,7 +6,7 @@ authors:
   - family-names: Collaborator
     given-names: Name
 version: 0.1.0
-date-released: 2026-05-09
-url: https://github.com/your-org/Modelica2Sysmlv2
+date-released: 2026-05-11
+url: https://github.com/edcisa/Modelica_2_SysMLv2
 license: MIT
-message: "If you use this software, please cite our paper in the Journal of Systems and Software."
+message: "If you use this software, please cite the corresponding paper and Zenodo record."

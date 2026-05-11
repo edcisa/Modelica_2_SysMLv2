@@ -8,7 +8,7 @@ from pydantic import BaseModel
 class YAMLSerializer:
     @staticmethod
     def serialize(ir: BaseModel) -> str:
-        return yaml.dump(ir.dict())
+        return yaml.dump(ir.model_dump())
 
     @staticmethod
     def deserialize(data: str, model: Any) -> BaseModel:

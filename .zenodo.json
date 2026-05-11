@@ -1,0 +1,22 @@
+{
+  "title": "Modelica2SysMLv2: AI-Assisted Semantic Transformation Pipeline",
+  "description": "Research-grade framework for AI-assisted semantic transformation from Modelica models to SysML v2 architectural representations, including extraction, mapping, validation, repair loops, and reproducible benchmark evaluation.",
+  "creators": [
+    {
+      "name": "edcisa"
+    }
+  ],
+  "keywords": [
+    "Modelica",
+    "SysML v2",
+    "MBSE",
+    "semantic transformation",
+    "AI-assisted software engineering",
+    "reproducible research"
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open",
+  "language": "eng",
+  "notes": "This artifact accompanies a software engineering research study on validation-driven transformation pipelines for MBSE interoperability."
+}
